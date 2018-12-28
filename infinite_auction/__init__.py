@@ -56,3 +56,15 @@ def valid_bids(bids, now: int=0):
     for bid in bids:
         if bid.bid > 0 and bid.expense_limit > 0 and bid.expiry > now:
             yield bid
+
+def find_end(amount: int, limit: int, expiry: int, now: int) -> (int, int):
+    """Finds the end point of a bid, so a timer can be set."""
+    if expiry <= now:
+        return None, None
+    if amount == 0:
+        return None, 0
+    broke = (limit * infinite_auction.NANOSECONDS_PER_DAY // amount) + now
+    if broke > expiry:
+        # Formula wrong.
+        return expiry, ((expiry - now) * NANOSECONDS_PER_DAY // limit) + now
+    return broke, limit
