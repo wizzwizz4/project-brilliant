@@ -17,7 +17,8 @@ class Bid:
         self.expiry = expiry
         self.id = id
 
-def _winner_and_bid(bids, increment: int) -> (Bid, int):
+def winning_bid(bids, increment: int) -> (Bid, int):
+    """Gets the highest bid. In the event of a tie, goes with the first."""
     bid_iterator = iter(bids)
     try:
         highest = next(bid_iterator)  # Priority to the first bid
@@ -42,13 +43,16 @@ def _winner_and_bid(bids, increment: int) -> (Bid, int):
         if current_bid > runner_up_bid:
             runner_up_bid = current_bid
 
-    bid = min(highest.bid,
-              runner_up_bid + increment)  # bid must be bigger, hopefully
+    # We have to cap the bid to the maximum bid provided.
+    bid = min(highest.bid, runner_up_bid + increment)
 
     return highest, bid
 
-def winning_bid(bids, increment: int) -> (Bid, int, int):
-    """Gets the highest bid. In the event of a tie, goes with the first.
+def valid_bids(bids, now: int=0):
+    """Filters bids for valid ones.
+
+    It's best to do this in SQL or something; don't use this function please.
     """
-    # Get the highest two bids
-    winner, bid = _winner_and_bid(bids)
+    for bid in bids:
+        if bid.bid > 0 and bid.expense_limit > 0 and bid.expiry > now:
+            yield bid

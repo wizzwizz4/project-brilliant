@@ -5,12 +5,10 @@ except (SystemError, ImportError):
     import __init__ as infinite_auction
 
 # API
-
-# Internals
-class Test_winner_and_bid(unittest.TestCase):
+class Test_winning_bid(unittest.TestCase):
     def test_first_come(self):
         # TODO: Add underscores back to the prices (500 -> 5_00)
-        winner, bid = infinite_auction._winner_and_bid((
+        winner, bid = infinite_auction.winning_bid((
             infinite_auction.Bid( 500 * infinite_auction.NANOSECONDS_PER_DAY,
                                  2500 * infinite_auction.NANOSECONDS_PER_DAY,
                                  9001,  # that's impossible!
@@ -28,12 +26,12 @@ class Test_winner_and_bid(unittest.TestCase):
         self.assertEqual(bid,     500 * infinite_auction.NANOSECONDS_PER_DAY)
 
     def test_no_bid(self):
-        winner, bid = infinite_auction._winner_and_bid((), 2362)
+        winner, bid = infinite_auction.winning_bid((), 2362)
         self.assertEqual(winner, None)
         self.assertEqual(bid, 0)
 
     def test_one_bid(self):
-        winner, bid = infinite_auction._winner_and_bid((
+        winner, bid = infinite_auction.winning_bid((
             infinite_auction.Bid( 500 * infinite_auction.NANOSECONDS_PER_DAY,
                                  9000 * infinite_auction.NANOSECONDS_PER_DAY,
                                  3,
@@ -41,6 +39,33 @@ class Test_winner_and_bid(unittest.TestCase):
         ),                         10 * infinite_auction.NANOSECONDS_PER_DAY)
         self.assertEqual(winner.id, "Winner")
         self.assertEqual(bid, 0)
+
+class Test_valid_bids(unittest.TestCase):
+    def test_static(self):
+        iterator = infinite_auction.valid_bids((
+            infinite_auction.Bid(   0 * infinite_auction.NANOSECONDS_PER_DAY,
+                                 1000 * infinite_auction.NANOSECONDS_PER_DAY,
+                                 infinite_auction.NANOSECONDS_PER_DAY + 500,
+                                 "Invalid"),
+            infinite_auction.Bid(1000 * infinite_auction.NANOSECONDS_PER_DAY,
+                                    0 * infinite_auction.NANOSECONDS_PER_DAY,
+                                 infinite_auction.NANOSECONDS_PER_DAY + 200,
+                                 "Invalid"),
+            infinite_auction.Bid( 450 * infinite_auction.NANOSECONDS_PER_DAY,
+                                 2600 * infinite_auction.NANOSECONDS_PER_DAY,
+                                 infinite_auction.NANOSECONDS_PER_DAY + 800,
+                                 "Valid #1"),
+            infinite_auction.Bid(6300 * infinite_auction.NANOSECONDS_PER_DAY,
+                                  240 * infinite_auction.NANOSECONDS_PER_DAY,
+                                 infinite_auction.NANOSECONDS_PER_DAY - 124,
+                                 "Invalid"),
+            infinite_auction.Bid(8450 * infinite_auction.NANOSECONDS_PER_DAY,
+                                 6820 * infinite_auction.NANOSECONDS_PER_DAY,
+                                 infinite_auction.NANOSECONDS_PER_DAY + 620,
+                                 "Valid #2")
+        ), infinite_auction.NANOSECONDS_PER_DAY)
+        self.assertEqual([bid.id for bid in iterator],
+                         ["Valid #1", "Valid #2"])
 
 # Constants
 class TestConstants(unittest.TestCase):
