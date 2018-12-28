@@ -17,7 +17,7 @@ class Bid:
         self.expiry = expiry
         self.id = id
 
-def _highest_and_runner_up(bids):
+def _winner_and_bid(bids, increment: int) -> (Bid, int):
     bid_iterator = iter(bids)
     try:
         highest = next(bid_iterator)  # Priority to the first bid
@@ -42,11 +42,13 @@ def _highest_and_runner_up(bids):
         if current_bid > runner_up_bid:
             runner_up_bid = current_bid
 
-    return highest, runner_up_bid
+    bid = min(highest.bid,
+              runner_up_bid + increment)  # bid must be bigger, hopefully
+
+    return highest, bid
 
 def winning_bid(bids, increment: int) -> (Bid, int, int):
     """Gets the highest bid. In the event of a tie, goes with the first.
     """
     # Get the highest two bids
-    winner, bid = _highest_and_runner_up(bids)
-    bid = min(winner.bid, bid + increment)  # bid must be bigger, hopefully
+    winner, bid = _winner_and_bid(bids)
