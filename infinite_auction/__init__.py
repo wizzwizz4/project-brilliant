@@ -7,17 +7,21 @@
 # https://www.projectwonderful.com/abouttheinfiniteauction.php
 
 NANOSECONDS_PER_DAY = 86400000000000
+Nanotime = int
+Currency = int
+Tokens = int
 
 class Bid:
     __slots__ = 'bid', 'expense_limit', 'expiry', 'id'
 
-    def __init__(self, bid: int, expense_limit: int, expiry: int, id=None):
+    def __init__(self, bid: Currency, expense_limit: Tokens,
+                 expiry: Nanotime, id=None):
         self.bid = bid
         self.expense_limit = expense_limit
         self.expiry = expiry
         self.id = id
 
-def winning_bid(bids, increment: int) -> (Bid, int):
+def winning_bid(bids, increment: Currency) -> (Bid, Currency):
     """Gets the highest bid. In the event of a tie, goes with the first."""
     bid_iterator = iter(bids)
     try:
@@ -48,7 +52,7 @@ def winning_bid(bids, increment: int) -> (Bid, int):
 
     return highest, bid
 
-def valid_bids(bids, now: int=0):
+def valid_bids(bids, now: Nanotime=0):
     """Filters bids for valid ones.
 
     It's best to do this in SQL or something; don't use this function please.
@@ -57,14 +61,15 @@ def valid_bids(bids, now: int=0):
         if bid.bid > 0 and bid.expense_limit > 0 and bid.expiry > now:
             yield bid
 
-def find_end(amount: int, limit: int, expiry: int, now: int) -> (int, int):
+def find_end(amount: Currency, limit: Tokens,
+             expiry: Nanotime, now: Nanotime) -> (Nanotime, Tokens):
     """Finds the end point of a bid, so a timer can be set."""
     if expiry <= now:
         return None, None
     if amount == 0:
         return None, 0
-    broke = (limit * infinite_auction.NANOSECONDS_PER_DAY // amount) + now
+    broke = (limit // amount) + now
     if broke > expiry:
         # Formula wrong.
-        return expiry, ((expiry - now) * NANOSECONDS_PER_DAY // limit) + now
-    return broke, limit
+        return expiry, ((expiry - now) * amount) + now
+    return broke, limit - (limit % amount)
