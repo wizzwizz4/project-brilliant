@@ -67,6 +67,27 @@ class Test_valid_bids(unittest.TestCase):
         self.assertEqual([bid.id for bid in iterator],
                          ["Valid #1", "Valid #2"])
 
+class Test_find_end(unittest.TestCase):
+    def test_valid(self):
+        for amount in range(1, 1000, 73):
+          for limit in range(0, 300000000000000, 772757382975):
+            for now in range(0, 3000000000000, 548795182242):
+              for expiry in range(now+1, 3000000000000, 5647289173652):
+                with unittest.TestCase.subTest(self,
+                                              (amount, limit, expiry, now)):
+                    finish, spent = infinite_auction.find_end(amount, limit,
+                                                              expiry, now)
+                    # Sanity
+                    self.assertLessEqual(finish, expiry)
+                    self.assertGreaterEqual(finish, now)
+
+                    # Validity
+                    self.assertLessEqual(
+                        amount * (finish - now),
+                        limit
+                    )
+                    self.assertLessEqual(spent, limit)
+
 # Constants
 class TestConstants(unittest.TestCase):
     def test_NANOSECONDS_PER_DAY(self):

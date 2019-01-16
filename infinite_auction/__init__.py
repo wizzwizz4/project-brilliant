@@ -70,6 +70,5 @@ def find_end(amount: Currency, limit: Tokens,
         return None, 0
     broke = (limit // amount) + now
     if broke > expiry:
-        # Formula wrong.
-        return expiry, ((expiry - now) * amount) + now
+        return expiry, ((expiry - now) * amount)
     return broke, limit - (limit % amount)
