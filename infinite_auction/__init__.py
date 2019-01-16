@@ -54,9 +54,9 @@ def find_end(amount: Currency, limit: Tokens,
              expiry: Nanotime, now: Nanotime) -> (Nanotime, Tokens):
     """Finds the end point of a bid, so a timer can be set."""
     if expiry <= now:
-        return None, None
+        raise ValueError("Expiry date in the past! Bid invalid.")
     if amount == 0:
-        return None, 0
+        return expiry, 0
     broke = (limit // amount) + now
     if broke > expiry:
         return expiry, ((expiry - now) * amount)

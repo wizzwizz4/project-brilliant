@@ -1,4 +1,5 @@
 import unittest
+from math import inf
 try:
     from . import infinite_auction
 except (SystemError, ImportError):
@@ -69,7 +70,7 @@ class Test_valid_bids(unittest.TestCase):
 
 class Test_find_end(unittest.TestCase):
     def test_valid(self):
-        for amount in range(1, 1000, 73):
+        for amount in range(0, 1000, 73):
           for limit in range(0, 300000000000000, 772757382975):
             for now in range(0, 3000000000000, 548795182242):
               for expiry in range(now+1, 3000000000000, 5647289173652):
@@ -77,6 +78,9 @@ class Test_find_end(unittest.TestCase):
                                               (amount, limit, expiry, now)):
                     finish, spent = infinite_auction.find_end(amount, limit,
                                                               expiry, now)
+                    if finish is None:
+                        finish = inf  # None means "never finishes"
+                        self.assertTrue(False, "finish is None!")
                     # Sanity
                     self.assertLessEqual(finish, expiry)
                     self.assertGreaterEqual(finish, now)
