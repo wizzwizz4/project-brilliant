@@ -3,8 +3,10 @@
 # This implementation is unaffiliated with Project Wonderful and is not
 # guaranteed to behave identically to Project Wonderful's implementation.
 # For a friendly description of the algorithm, see:
-# http:s//web.archive.org/web/20180612112237/
+# https://web.archive.org/web/20180612112237/
 # https://www.projectwonderful.com/abouttheinfiniteauction.php
+
+from collections import deque
 
 NANOSECONDS_PER_DAY = 86400000000000
 Nanotime = int
@@ -23,36 +25,23 @@ class Bid:
 
 def winning_bid(bids, increment: Currency) -> (Bid, Currency):
     """Gets the highest bid. In the event of a tie, goes with the first."""
-    bid_iterator = iter(bids)
     try:
-        highest = next(bid_iterator)  # Priority to the first bid
+        return next(winning_bids(bids, increment))
     except StopIteration:
         return None, 0
-    try:
-        current = next(bid_iterator)
-    except StopIteration:
-        return highest, 0
-    if current.bid > highest.bid:
-        runner_up_bid = highest.bid
-        highest = current
-    else:
-        runner_up_bid = current.bid
 
-    for current in bid_iterator:
-        current_bid = current.bid
-        if current_bid > highest.bid:
-            runner_up_bid = highest.bid
-            highest = current
-            continue
-        if current_bid > runner_up_bid:
-            runner_up_bid = current_bid
+def winning_bids(bids, increment: Currency) -> [(Bid, Currency)]:
+    bids = sorted(enumerate(bids), key=lambda a: (a[1].bid, -a[0]))
 
-    # We have to cap the bid to the maximum bid provided.
-    bid = min(highest.bid, runner_up_bid + increment)
+    output = deque()
+    to_beat = 0
+    for i, bid in bids:
+        bid_amount = bid.bid
+        output.appendleft((bid, min(bid_amount, to_beat)))
+        to_beat = bid_amount + increment
+    yield from output
 
-    return highest, bid
-
-def valid_bids(bids, now: Nanotime=0):
+def valid_bids(bids, now: Nanotime=0) -> [Bid]:
     """Filters bids for valid ones.
 
     It's best to do this in SQL or something; don't use this function please.
