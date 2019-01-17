@@ -24,7 +24,7 @@ class Bid:
         self.id = id
 
 def winning_bid(bids, increment: Currency) -> (Bid, Currency):
-    """Gets the highest bid. In the event of a tie, goes with the first."""
+    """Get the highest bid. In the event of a tie, goes with the first."""
     try:
         return next(winning_bids(bids, increment))
     except StopIteration:
@@ -42,7 +42,7 @@ def winning_bids(bids, increment: Currency) -> [(Bid, Currency)]:
     yield from output
 
 def valid_bids(bids, now: Nanotime=0) -> [Bid]:
-    """Filters bids for valid ones.
+    """Filter bids for valid ones.
 
     It's best to do this in SQL or something; don't use this function please.
     """
@@ -52,7 +52,7 @@ def valid_bids(bids, now: Nanotime=0) -> [Bid]:
 
 def find_end(amount: Currency, limit: Tokens,
              expiry: Nanotime, now: Nanotime) -> (Nanotime, Tokens):
-    """Finds the end point of a bid, so a timer can be set."""
+    """Find the end point of a bid, so a timer can be set."""
     if expiry <= now:
         raise ValueError("Expiry date in the past! Bid invalid.")
     if amount == 0:
@@ -61,3 +61,10 @@ def find_end(amount: Currency, limit: Tokens,
     if broke > expiry:
         return expiry, ((expiry - now) * amount)
     return broke, limit - (limit % amount)
+
+def run_auction(bids, increment: Currency,
+                now: Nanotime) -> [(Bid, Nanotime, Tokens)]:
+    """Run an auction and yield (current bid, when it ends, tokens spent)."""
+    for bid, bid_amount_c in winning_bids(bids, increment):
+        now, spent_t = find_end(bid_amount, bid.limit, bid.expiry, now)
+        yield bid, now, spent_t

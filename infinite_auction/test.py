@@ -92,6 +92,19 @@ class Test_find_end(unittest.TestCase):
                     )
                     self.assertLessEqual(spent, limit)
 
+                    if finish < expiry:
+                        # Didn't give up early for nothing
+                        # Not possible to have spent more
+                        self.assertLess(limit - spent, amount)
+                    else:
+                        # Spent the right amount of money
+                        self.assertEqual(divmod(spent, (expiry - now)),
+                                         (amount, 0))
+
+class Test_run_auction(unittest.TestCase):
+    def test_valid(self):
+        pass
+
 # Constants
 class TestConstants(unittest.TestCase):
     def test_NANOSECONDS_PER_DAY(self):
