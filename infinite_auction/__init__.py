@@ -65,6 +65,8 @@ def find_end(amount: Currency, limit: Tokens,
 def run_auction(bids, increment: Currency,
                 now: Nanotime) -> [(Bid, Nanotime, Tokens)]:
     """Run an auction and yield (current bid, when it ends, tokens spent)."""
+    # Doesn't work! Flag when each bid has expired, and recalculate which win.
     for bid, bid_amount_c in winning_bids(bids, increment):
-        now, spent_t = find_end(bid_amount, bid.limit, bid.expiry, now)
+        now, spent_t = find_end(bid_amount_c, bid.expense_limit,
+                                bid.expiry, now)
         yield bid, now, spent_t

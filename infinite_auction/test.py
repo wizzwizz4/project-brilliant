@@ -102,8 +102,84 @@ class Test_find_end(unittest.TestCase):
                                          (amount, 0))
 
 class Test_run_auction(unittest.TestCase):
-    def test_valid(self):
-        pass
+    def test_alice_bids(self):
+        # Alice starts out and bids a maximum of $5 a day for a week.
+        # Since she's the only bidder, her bid starts out at $0.
+        # Free advertising!
+        auction = infinite_auction.run_auction(
+            (infinite_auction.Bid(
+                500,  # $5
+                42,   # unspecified (should default to 500 * 7 * N_PER_DAY)
+                7 * infinite_auction.NANOSECONDS_PER_DAY,
+                "Alice"
+            ),),
+            10,       # 10¢
+            0         # t=0
+        )
+        alice, expiry, spent = next(auction)
+        self.assertEqual(alice.id, "Alice")
+        self.assertEqual(expiry, 7 * infinite_auction.NANOSECONDS_PER_DAY)
+        self.assertEqual(spent, 0)
+
+    def test_partario_outbid(self):
+        # Partario wants in! He sees Alice's bid of $0 and decides
+        # he'll outbid her with a bid of $1 a day for one day.
+        # He places his bid, but Alice's bid automatically outbids him.
+        auction = infinite_auction.run_auction(
+            (
+                infinite_auction.Bid(
+                    500,  # $5
+                    110 * infinite_auction.NANOSECONDS_PER_DAY + 42,
+                    7 * infinite_auction.NANOSECONDS_PER_DAY,
+                    "Alice"
+                ),
+                infinite_auction.Bid(
+                    100,  # $1
+                    42,   # anything with 42 means unspecified
+                    1 * infinite_auction.NANOSECONDS_PER_DAY,
+                    "Partario"
+                )
+            ),
+            10,       # 10¢
+            0         # t=0
+        )
+        alice, expiry, spent = next(auction)
+        self.assertEqual(alice.id, "Alice")
+        self.assertEqual(expiry, 1 * infinite_auction.NANOSECONDS_PER_DAY)
+        self.assertEqual(spent, 110 * infinite_auction.NANOSECONDS_PER_DAY)
+
+        # A day later, Partario's bid expires, and Alice's bid
+        # automatically drops back down to $0.
+        # Free advertising!
+        alice, expiry, spent = next(auction)
+        self.assertEqual(alice.id, "Alice")
+        self.assertEqual(expiry, 7 * infinite_auction.NANOSECONDS_PER_DAY)
+        self.assertEqual(spent, 0)
+
+    def test_partarios_revenge(self):
+        # Partario's back, and this time he decides to bid $100 a day
+        # for a week, with an expense limit of $1. Alice is outbid!
+        # Notice that Partario's bid only goes as high as it needs to
+        # in order to defeat Alice.
+        auction = infinite_auction.run_auction(
+            (
+                infinite_auction.Bid(
+                    500,                                         # $5
+                    42,
+                    7 * infinite_auction.NANOSECONDS_PER_DAY,
+                    "Alice"
+                ),
+                infinite_auction.Bid(
+                    10000,                                       # $100
+                    100 * infinite_auction.NANOSECONDS_PER_DAY,  # $1
+                    1 * infinite_auction.NANOSECONDS_PER_DAY,
+                    "Partario"
+                )
+            ),
+            10,       # 10¢
+            0         # t=0
+        )
+        # TODO
 
 # Constants
 class TestConstants(unittest.TestCase):
