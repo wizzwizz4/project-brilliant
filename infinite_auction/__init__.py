@@ -98,15 +98,20 @@ def run_auction(bids: [Bid], increment: Currency,
             candidate_index = bids.index(candidate)
             if candidate_amount_c <= expense_limits[candidate_index]:
                 expiry = min(candidate.expiry, bid.expiry)
-                bid_amount_c = min(bid_amount_c,
-                                   candidate_amount_c + increment)
                 break
         del candidate, candidate_amount_c, candidate_index
 
-        bid, bid_amount_c = winning_bid(bids, increment)
         now, spent_t = find_end(bid_amount_c, expense_limits[index],
                                 expiry, now)
+        assert bid_amount_c == 0 or spent_t > 0, "Stuck in an infinite loop!"
+        expense_limits[index] -= spent_t
 
         yield bid, now, spent_t
 
-        bids = [bid for bid in bids if bid.expiry > now]
+        i = 0
+        while i < len(bids):
+            if bids[i].expiry <= now:
+                del bids[i]
+                del expense_limits[i]
+            else:
+                i += 1

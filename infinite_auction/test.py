@@ -179,7 +179,28 @@ class Test_run_auction(unittest.TestCase):
             10,       # 10¢
             0         # t=0
         )
-        # TODO
+
+        # Since Partario's bid is pretty big, but his expense limit is pretty
+        # small, the $1 expense limit is very quickly reached. His bid was
+        # chargd at $5.10/day to a maximum of $1, so he got about five hours of
+        # display time ($5.10/day is about 20 cents an hour) before
+        # that $1 limit was reached.
+        partario, expiry, spent = next(auction)
+        self.assertEqual(partario.id, "Partario")
+        self.assertAlmostEqual(
+            expiry / infinite_auction.NANOSECONDS_PER_DAY * 24,
+            5, places=0)
+        self.assertAlmostEqual(
+            spent / infinite_auction.NANOSECONDS_PER_DAY,
+            100       # $1
+        )
+
+        # His bid expires, and Alice's takes over again at $0.
+        # Free advertising!
+        alice, expiry, spent = next(auction)
+        self.assertEqual(alice.id, "Alice")
+        self.assertEqual(expiry, 7 * infinite_auction.NANOSECONDS_PER_DAY)
+        self.assertEqual(spent, 0)
 
 # Constants
 class TestConstants(unittest.TestCase):
