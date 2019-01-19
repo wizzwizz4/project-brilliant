@@ -41,7 +41,7 @@ def winning_bids(bids, increment: Currency) -> [(Bid, Currency)]:
         to_beat = bid_amount + increment
     yield from output
 
-def valid_bids(bids, now: Nanotime=0) -> [Bid]:
+def valid_bids(bids: [Bid], now: Nanotime=0) -> [Bid]:
     """Filter bids for valid ones.
 
     It's best to do this in SQL or something; don't use this function please.
@@ -52,7 +52,13 @@ def valid_bids(bids, now: Nanotime=0) -> [Bid]:
 
 def find_end(amount: Currency, limit: Tokens,
              expiry: Nanotime, now: Nanotime) -> (Nanotime, Tokens):
-    """Find the end point of a bid, so a timer can be set."""
+    """Find the end point of a bid, so a timer can be set.
+
+    WARNING: Assumes that this is the only bid; ensure that expiry is the
+    minimum of the expiry date of the bid and the amount's validity. A naïve
+    use would be to take the minimum of all bids' expiry dates, but this is
+    suboptimal.
+    """
     if expiry <= now:
         raise ValueError("Expiry date in the past! Bid invalid.")
     if amount == 0:
@@ -62,11 +68,45 @@ def find_end(amount: Currency, limit: Tokens,
         return expiry, ((expiry - now) * amount)
     return broke, limit - (limit % amount)
 
-def run_auction(bids, increment: Currency,
+def run_auction(bids: [Bid], increment: Currency,
                 now: Nanotime) -> [(Bid, Nanotime, Tokens)]:
     """Run an auction and yield (current bid, when it ends, tokens spent)."""
-    # Doesn't work! Flag when each bid has expired, and recalculate which win.
-    for bid, bid_amount_c in winning_bids(bids, increment):
-        now, spent_t = find_end(bid_amount_c, bid.expense_limit,
-                                bid.expiry, now)
+    bids = list(bids)
+    expense_limits = [bid.expense_limit for bid in bids]
+    while bids:
+        candidates = winning_bids(bids, increment)
+        while True:
+            try:
+                candidate, candidate_amount_c = next(candidates)
+            except StopIteration as e:
+                raise AssertionError(
+                    "There are literally no candidates."
+                ) from e
+            index = bids.index(candidate)
+            if candidate_amount_c <= expense_limits[index]:
+                # It has a chance of being able to pay
+                bid = candidate
+                bid_amount_c = candidate_amount_c
+                break
+        candidate_index = None
+        while True:
+            try:
+                candidate, candidate_amount_c = next(candidates)
+            except StopIteration as e:
+                expiry = bid.expiry
+                break
+            candidate_index = bids.index(candidate)
+            if candidate_amount_c <= expense_limits[candidate_index]:
+                expiry = min(candidate.expiry, bid.expiry)
+                bid_amount_c = min(bid_amount_c,
+                                   candidate_amount_c + increment)
+                break
+        del candidate, candidate_amount_c, candidate_index
+
+        bid, bid_amount_c = winning_bid(bids, increment)
+        now, spent_t = find_end(bid_amount_c, expense_limits[index],
+                                expiry, now)
+
         yield bid, now, spent_t
+
+        bids = [bid for bid in bids if bid.expiry > now]
