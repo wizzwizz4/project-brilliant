@@ -202,6 +202,37 @@ class Test_run_auction(unittest.TestCase):
         self.assertEqual(expiry, 7 * infinite_auction.NANOSECONDS_PER_DAY)
         self.assertEqual(spent, 0)
 
+    def test_partinos_revenge_2(self):
+        # Partino also decides to place a second bid, this time of $1 a day
+        # for a week. This way, if his more expensive bid expires, he'll still
+        # have a chance of his ad being shown at a rate he likes! This new bid
+        # is outbid, but his older bid of $100 (max) is still the high bidder,
+        # so his ad is being shown.
+        auction = infinite_auction.run_auction(
+            (
+                infinite_auction.Bid(
+                    500,                                         # $5
+                    500 * 6 * infinite_auction.NANOSECONDS_PER_DAY + 42,
+                    7 * infinite_auction.NANOSECONDS_PER_DAY,
+                    "Alice"
+                ),
+                infinite_auction.Bid(
+                    10000,                                       # $100
+                    100 * infinite_auction.NANOSECONDS_PER_DAY,  # $1
+                    8 * infinite_auction.NANOSECONDS_PER_DAY,  # started at 1d
+                    "Partario"
+                ),
+                infinite_auction.Bid(
+                    100,                # $1
+                    42,
+                    8 * infinite_auction.NANOSECONDS_PER_DAY,  # started at 1d
+                    "Partario2"
+                )
+            ),
+            10,                                   # 10¢
+            infinite_auction.NANOSECONDS_PER_DAY  # t=1d
+        )
+
 # Constants
 class TestConstants(unittest.TestCase):
     def test_NANOSECONDS_PER_DAY(self):
