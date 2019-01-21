@@ -79,9 +79,7 @@ def run_auction(bids: [Bid], increment: Currency,
             try:
                 candidate, candidate_amount_c = next(candidates)
             except StopIteration as e:
-                raise AssertionError(
-                    "There are literally no candidates."
-                ) from e
+                return  # No more candidates
             index = bids.index(candidate)
             if candidate_amount_c <= expense_limits[index]:
                 # It has a chance of being able to pay

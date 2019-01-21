@@ -156,6 +156,9 @@ class Test_run_auction(unittest.TestCase):
         self.assertEqual(expiry, 7 * infinite_auction.NANOSECONDS_PER_DAY)
         self.assertEqual(spent, 0)
 
+        with self.assertRaises(StopIteration):
+            next(auction)
+
     def test_partarios_revenge(self):
         # Partario's back, and this time he decides to bid $100 a day
         # for a week, with an expense limit of $1. Alice is outbid!
@@ -202,6 +205,9 @@ class Test_run_auction(unittest.TestCase):
         self.assertEqual(expiry, 7 * infinite_auction.NANOSECONDS_PER_DAY)
         self.assertEqual(spent, 0)
 
+        with self.assertRaises(StopIteration):
+            next(auction)
+
     def test_partinos_revenge_2(self):
         # Partino also decides to place a second bid, this time of $1 a day
         # for a week. This way, if his more expensive bid expires, he'll still
@@ -232,6 +238,39 @@ class Test_run_auction(unittest.TestCase):
             10,                                   # 10¢
             infinite_auction.NANOSECONDS_PER_DAY  # t=1d
         )
+
+    def test_none_can_bid(self):
+        auction = infinite_auction.run_auction(
+            (
+                infinite_auction.Bid(
+                    500,
+                    400,
+                    10000,
+                    "Can't pay."
+                ),
+                infinite_auction.Bid(
+                    500,
+                    600,
+                    10000,
+                    "Can only pay once."
+                ),
+                infinite_auction.Bid(
+                    450,
+                    -1,
+                    10000,
+                    "Drives the price up."
+                )
+            ),
+            10,
+            0
+        )
+        bid, expiry, spent = next(auction)
+        self.assertEqual(bid.id, "Can only pay once.")
+        self.assertEqual(expiry, 1)
+        self.assertEqual(spent, 460)
+
+        with self.assertRaises(StopIteration):
+            next(auction)
 
 # Constants
 class TestConstants(unittest.TestCase):
