@@ -218,7 +218,7 @@ class Test_run_auction(unittest.TestCase):
             (
                 infinite_auction.Bid(
                     500,                                         # $5
-                    500 * 6 * infinite_auction.NANOSECONDS_PER_DAY + 42,
+                    500 * 7 * infinite_auction.NANOSECONDS_PER_DAY + 42,
                     7 * infinite_auction.NANOSECONDS_PER_DAY,
                     "Alice"
                 ),
@@ -238,6 +238,43 @@ class Test_run_auction(unittest.TestCase):
             10,                                   # 10¢
             infinite_auction.NANOSECONDS_PER_DAY  # t=1d
         )
+        partario, expiry, spent = next(auction)
+        self.assertEqual(partario.id, "Partario")
+        self.assertAlmostEqual(
+            expiry / infinite_auction.NANOSECONDS_PER_DAY * 24,
+            24 + 5, places=0)
+        self.assertAlmostEqual(
+            spent / infinite_auction.NANOSECONDS_PER_DAY,
+            100       # $1
+        )
+
+        # Since Partario's bid is pretty big, but his expense limit is pretty
+        # small, the $1 expense limit is very quickly reached. His bid expires,
+        # and once again Alice is the highest bidder. Partario's second bid of
+        # $1 a day forces Alice's bid up a bit.
+        alice, expiry_2, spent_2 = next(auction)
+        self.assertEqual(alice.id, "Alice")
+        self.assertEqual(expiry_2, 7 * infinite_auction.NANOSECONDS_PER_DAY)
+        self.assertEqual(spent_2, (expiry_2 - expiry) * 110)
+
+        # Finally, a week after she placed it, Alice's bid expiry date is
+        # reached, and it expires.
+        # Despite Project Wonderful's simplified example, there's still a bit
+        # left in Partario's first bid. He's bidding against himself!
+        partario, expiry_2, spent_2 = next(auction)
+        self.assertEqual(partario.id, "Partario")
+        ## self.assertEqual(expiry_2,  # don't know what this should be!
+        self.assertGreaterEqual(spent + spent_2, partario.expense_limit - 110)
+
+        # Partario's bid of $1 a day is now the high bidder!
+        # Nobody else has bid, so: free advertising!
+        partario, expiry, spent = next(auction)
+        self.assertEqual(partario.id, "Partario2")
+        self.assertEqual(expiry, 8 * infinite_auction.NANOSECONDS_PER_DAY)
+        self.assertEqual(spent, 0)
+
+        with self.assertRaises(StopIteration):
+            next(auction)
 
     def test_none_can_bid(self):
         auction = infinite_auction.run_auction(
