@@ -1,0 +1,15 @@
+# This lovely Travis snippet can be found at:
+# https://doc.rust-lang.org/cargo/guide/continuous-integration.html
+#
+# Technically it isn't released under the same license as the
+# rest of the code, because I don't have the authority to do so,
+# but I doubt anybody will care.
+
+language: rust
+rust:
+  - stable
+  - beta
+  - nightly
+matrix:
+  allow_failures:
+    - rust: nightly
