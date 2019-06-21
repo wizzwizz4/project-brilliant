@@ -4,3 +4,6 @@ version = "0.0.0"
 authors = ["wizzwizz4"]
 edition = "2018"
 publish = false  # It's not stable yet!
+
+[dependencies]
+derive_more = "0.13.0"
