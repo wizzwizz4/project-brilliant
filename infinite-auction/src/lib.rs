@@ -3,11 +3,11 @@ use project_brilliant_utilities::{
     NANOSECONDS_PER_DAY
 };
 
-pub struct Bid<T> {
+pub struct Bid<'a, T> {
     bid: Currency,
     expense_limit: Token,
     expiry: NanoSecond,
-    data: T
+    data: &'a T
 }
 
 #[cfg(test)]
