@@ -5,11 +5,14 @@ use std::ops::{Mul, Div, Rem};
 
 pub const NANOSECONDS_PER_DAY: Token = Token(86_400_000_000_000);
 
-#[derive(Clone, Debug, From, PartialEq, Eq, PartialOrd, Ord, Add, AddAssign)]
+#[derive(Clone, Debug, From, PartialEq, Eq, PartialOrd, Ord, Add, AddAssign,
+         Sub, SubAssign)]
 pub struct NanoSecond(u64);
-#[derive(Clone, Debug, From, PartialEq, Eq, PartialOrd, Ord, Add, AddAssign)]
+#[derive(Clone, Debug, From, PartialEq, Eq, PartialOrd, Ord, Add, AddAssign,
+         Sub, SubAssign)]
 pub struct Currency(u64);
-#[derive(Clone, Debug, From, PartialEq, Eq, PartialOrd, Ord, Add, AddAssign)]
+#[derive(Clone, Debug, From, PartialEq, Eq, PartialOrd, Ord, Add, AddAssign,
+         Sub, SubAssign)]
 pub struct Token(u64);
 
 impl Mul<Token> for NanoSecond {
@@ -116,28 +119,104 @@ mod tests {
     }
 
     #[test]
+    fn test_add_sub() {
+        for x in sparse_to_64!().take_while(|x| *x < (u64::max_value() / 2)) {
+            for y in sparse_to_64!().take_while(|y| *y <= x) {
+                assert_eq!(
+                    NanoSecond(x + y),
+                    NanoSecond::from(x) + NanoSecond::from(y),
+                    "NanoSecond::from({}) + NanoSecond::from({})", x, y
+                );
+                assert_eq!(
+                    NanoSecond(x - y),
+                    NanoSecond::from(x) - NanoSecond::from(y),
+                    "NanoSecond::from({}) - NanoSecond::from({})", x, y
+                );
+                let mut z = NanoSecond::from(x);
+                z += NanoSecond::from(y);
+                assert_eq!(
+                    NanoSecond(x + y), z,
+                    "NanoSecond::from({}) += NanoSecond::from({})", x, y
+                );
+                let mut z = NanoSecond::from(x);
+                z -= NanoSecond::from(y);
+                assert_eq!(
+                    NanoSecond(x - y), z,
+                    "NanoSecond::from({}) -= NanoSecond::from({})", x, y
+                );
+
+                assert_eq!(
+                    Currency(x + y),
+                    Currency::from(x) + Currency::from(y),
+                    "Currency::from({}) + Currency::from({})", x, y
+                );
+                assert_eq!(
+                    Currency(x - y),
+                    Currency::from(x) - Currency::from(y),
+                    "Currency::from({}) - Currency::from({})", x, y
+                );
+                let mut z = Currency::from(x);
+                z += Currency::from(y);
+                assert_eq!(
+                    Currency(x + y), z,
+                    "Currency::from({}) += Currency::from({})", x, y
+                );
+                let mut z = Currency::from(x);
+                z -= Currency::from(y);
+                assert_eq!(
+                    Currency(x - y), z,
+                    "Currency::from({}) -= Currency::from({})", x, y
+                );
+
+                assert_eq!(
+                    Token(x + y),
+                    Token::from(x) + Token::from(y),
+                    "Token::from({}) + Token::from({})", x, y
+                );
+                assert_eq!(
+                    Token(x - y),
+                    Token::from(x) - Token::from(y),
+                    "Token::from({}) - Token::from({})", x, y
+                );
+                let mut z = Token::from(x);
+                z += Token::from(y);
+                assert_eq!(
+                    Token(x + y), z,
+                    "Token::from({}) += Token::from({})", x, y
+                );
+                let mut z = Token::from(x);
+                z -= Token::from(y);
+                assert_eq!(
+                    Token(x - y), z,
+                    "Token::from({}) -= Token::from({})", x, y
+                );
+            }
+        }
+    }
+
+    #[test]
     fn test_mul() {
         // you know what, just test everything at once
         for x in sparse_to_32!() {
             for y in sparse_to_32!() {
                 assert_eq!(
                     Currency(x * y),
-                    (NanoSecond::from(x) * Token::from(y)),
+                    NanoSecond::from(x) * Token::from(y),
                     "NanoSecond::from({}) * Token::from({})", x, y
                 );
                 assert_eq!(
                     Currency(x * y),
-                    (NanoSecond::from(x) * &Token::from(y)),
+                    NanoSecond::from(x) * &Token::from(y),
                     "NanoSecond::from({}) * &Token::from({})", x, y
                 );
                 assert_eq!(
                     Currency(x * y),
-                    (Token::from(x) * NanoSecond::from(y)),
+                    Token::from(x) * NanoSecond::from(y),
                     "Token::from({}) * NanoSecond::from({})", x, y
                 );
                 assert_eq!(
                     Currency(x * y),
-                    (Token::from(x) * &NanoSecond::from(y)),
+                    Token::from(x) * &NanoSecond::from(y),
                     "Token::from({}) * &NanoSecond::from({})", x, y
                 );
             }
