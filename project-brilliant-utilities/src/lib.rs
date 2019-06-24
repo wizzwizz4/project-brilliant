@@ -5,85 +5,85 @@ use std::ops::{Mul, Div, Rem};
 
 pub const NANOSECONDS_PER_DAY: Token = Token(86_400_000_000_000);
 
-#[derive(Clone, Debug, From, PartialEq, Eq, PartialOrd, Ord, Add, AddAssign,
-         Sub, SubAssign)]
+#[derive(Copy, Clone, Debug, From, PartialEq, Eq, PartialOrd, Ord,
+         Add, AddAssign, Sub, SubAssign)]
 pub struct NanoSecond(u64);
-#[derive(Clone, Debug, From, PartialEq, Eq, PartialOrd, Ord, Add, AddAssign,
-         Sub, SubAssign)]
+#[derive(Copy, Clone, Debug, From, PartialEq, Eq, PartialOrd, Ord,
+         Add, AddAssign, Sub, SubAssign)]
 pub struct Currency(u64);
-#[derive(Clone, Debug, From, PartialEq, Eq, PartialOrd, Ord, Add, AddAssign,
-         Sub, SubAssign)]
+#[derive(Copy, Clone, Debug, From, PartialEq, Eq, PartialOrd, Ord,
+         Add, AddAssign, Sub, SubAssign)]
 pub struct Token(u64);
 
-impl Mul<Token> for NanoSecond {
-    type Output = Currency;
-    fn mul(self: NanoSecond, rhs: Token) -> Currency {
-        Currency(self.0 * rhs.0)
-    }
-}
-impl Mul<&Token> for NanoSecond {
-    type Output = Currency;
-    fn mul(self: NanoSecond, rhs: &Token) -> Currency {
-        Currency(self.0 * rhs.0)
-    }
-}
-impl Mul<NanoSecond> for Token {
-    type Output = Currency;
-    fn mul(self: Token, rhs: NanoSecond) -> Currency {
-        Currency(self.0 * rhs.0)
-    }
-}
-impl Mul<&NanoSecond> for Token {
-    type Output = Currency;
-    fn mul(self: Token, rhs: &NanoSecond) -> Currency {
-        Currency(self.0 * rhs.0)
-    }
-}
-impl Div<NanoSecond> for Currency {
+impl Mul<Currency> for NanoSecond {
     type Output = Token;
-    fn div(self: Currency, rhs: NanoSecond) -> Token {
-        Token(self.0 / rhs.0)
+    fn mul(self: NanoSecond, rhs: Currency) -> Token {
+        Token(self.0 * rhs.0)
     }
 }
-impl Div<&NanoSecond> for Currency {
+impl Mul<&Currency> for NanoSecond {
     type Output = Token;
-    fn div(self: Currency, rhs: &NanoSecond) -> Token {
-        Token(self.0 / rhs.0)
+    fn mul(self: NanoSecond, rhs: &Currency) -> Token {
+        Token(self.0 * rhs.0)
     }
 }
-impl Rem<NanoSecond> for Currency {
+impl Mul<NanoSecond> for Currency {
     type Output = Token;
-    fn rem(self: Currency, rhs: NanoSecond) -> Token {
-        Token(self.0 % rhs.0)
+    fn mul(self: Currency, rhs: NanoSecond) -> Token {
+        Token(self.0 * rhs.0)
     }
 }
-impl Rem<&NanoSecond> for Currency {
+impl Mul<&NanoSecond> for Currency {
     type Output = Token;
-    fn rem(self: Currency, rhs: &NanoSecond) -> Token {
-        Token(self.0 % rhs.0)
+    fn mul(self: Currency, rhs: &NanoSecond) -> Token {
+        Token(self.0 * rhs.0)
     }
 }
-impl Div<Token> for Currency {
+impl Div<NanoSecond> for Token {
+    type Output = Currency;
+    fn div(self: Token, rhs: NanoSecond) -> Currency {
+        Currency(self.0 / rhs.0)
+    }
+}
+impl Div<&NanoSecond> for Token {
+    type Output = Currency;
+    fn div(self: Token, rhs: &NanoSecond) -> Currency {
+        Currency(self.0 / rhs.0)
+    }
+}
+impl Rem<NanoSecond> for Token {
+    type Output = Currency;
+    fn rem(self: Token, rhs: NanoSecond) -> Currency {
+        Currency(self.0 % rhs.0)
+    }
+}
+impl Rem<&NanoSecond> for Token {
+    type Output = Currency;
+    fn rem(self: Token, rhs: &NanoSecond) -> Currency {
+        Currency(self.0 % rhs.0)
+    }
+}
+impl Div<Currency> for Token {
     type Output = NanoSecond;
-    fn div(self: Currency, rhs: Token) -> NanoSecond {
+    fn div(self: Token, rhs: Currency) -> NanoSecond {
         NanoSecond(self.0 / rhs.0)
     }
 }
-impl Div<&Token> for Currency {
+impl Div<&Currency> for Token {
     type Output = NanoSecond;
-    fn div(self: Currency, rhs: &Token) -> NanoSecond {
+    fn div(self: Token, rhs: &Currency) -> NanoSecond {
         NanoSecond(self.0 / rhs.0)
     }
 }
-impl Rem<Token> for Currency {
+impl Rem<Currency> for Token {
     type Output = NanoSecond;
-    fn rem(self: Currency, rhs: Token) -> NanoSecond {
+    fn rem(self: Token, rhs: Currency) -> NanoSecond {
         NanoSecond(self.0 % rhs.0)
     }
 }
-impl Rem<&Token> for Currency {
+impl Rem<&Currency> for Token {
     type Output = NanoSecond;
-    fn rem(self: Currency, rhs: &Token) -> NanoSecond {
+    fn rem(self: Token, rhs: &Currency) -> NanoSecond {
         NanoSecond(self.0 % rhs.0)
     }
 }
@@ -200,24 +200,24 @@ mod tests {
         for x in sparse_to_32!() {
             for y in sparse_to_32!() {
                 assert_eq!(
-                    Currency(x * y),
-                    NanoSecond::from(x) * Token::from(y),
-                    "NanoSecond::from({}) * Token::from({})", x, y
+                    Token(x * y),
+                    NanoSecond::from(x) * Currency::from(y),
+                    "NanoSecond::from({}) * Currency::from({})", x, y
                 );
                 assert_eq!(
-                    Currency(x * y),
-                    NanoSecond::from(x) * &Token::from(y),
-                    "NanoSecond::from({}) * &Token::from({})", x, y
+                    Token(x * y),
+                    NanoSecond::from(x) * &Currency::from(y),
+                    "NanoSecond::from({}) * &Currency::from({})", x, y
                 );
                 assert_eq!(
-                    Currency(x * y),
-                    Token::from(x) * NanoSecond::from(y),
-                    "Token::from({}) * NanoSecond::from({})", x, y
+                    Token(x * y),
+                    Currency::from(x) * NanoSecond::from(y),
+                    "Currency::from({}) * NanoSecond::from({})", x, y
                 );
                 assert_eq!(
-                    Currency(x * y),
-                    Token::from(x) * &NanoSecond::from(y),
-                    "Token::from({}) * &NanoSecond::from({})", x, y
+                    Token(x * y),
+                    Currency::from(x) * &NanoSecond::from(y),
+                    "Currency::from({}) * &NanoSecond::from({})", x, y
                 );
             }
         }
@@ -227,44 +227,44 @@ mod tests {
         for x in sparse_to_64!() {
             for y in sparse_to_32!().skip(1) {
                 assert_eq!(
-                    Token(x / y),
-                    Currency::from(x) / NanoSecond::from(y),
-                    "Currency::from({}) / NanoSecond::from({})", x, y
+                    Currency(x / y),
+                    Token::from(x) / NanoSecond::from(y),
+                    "Token::from({}) / NanoSecond::from({})", x, y
                 );
                 assert_eq!(
-                    Token(x / y),
-                    Currency::from(x) / &NanoSecond::from(y),
-                    "Currency::from({}) / &NanoSecond::from({})", x, y
+                    Currency(x / y),
+                    Token::from(x) / &NanoSecond::from(y),
+                    "Token::from({}) / &NanoSecond::from({})", x, y
                 );
                 assert_eq!(
-                    Token(x % y),
-                    Currency::from(x) % NanoSecond::from(y),
-                    "Currency::from({}) % NanoSecond::from({})", x, y
+                    Currency(x % y),
+                    Token::from(x) % NanoSecond::from(y),
+                    "Token::from({}) % NanoSecond::from({})", x, y
                 );
                 assert_eq!(
-                    Token(x % y),
-                    Currency::from(x) % &NanoSecond::from(y),
-                    "Currency::from({}) % &NanoSecond::from({})", x, y
-                );
-                assert_eq!(
-                    NanoSecond(x / y),
-                    Currency::from(x) / Token::from(y),
-                    "Currency::from({}) / Token::from({})", x, y
+                    Currency(x % y),
+                    Token::from(x) % &NanoSecond::from(y),
+                    "Token::from({}) % &NanoSecond::from({})", x, y
                 );
                 assert_eq!(
                     NanoSecond(x / y),
-                    Currency::from(x) / &Token::from(y),
-                    "Currency::from({}) / &Token::from({})", x, y
+                    Token::from(x) / Currency::from(y),
+                    "Token::from({}) / Currency::from({})", x, y
+                );
+                assert_eq!(
+                    NanoSecond(x / y),
+                    Token::from(x) / &Currency::from(y),
+                    "Token::from({}) / &Currency::from({})", x, y
                 );
                 assert_eq!(
                     NanoSecond(x % y),
-                    Currency::from(x) % Token::from(y),
-                    "Currency::from({}) % Token::from({})", x, y
+                    Token::from(x) % Currency::from(y),
+                    "Token::from({}) % Currency::from({})", x, y
                 );
                 assert_eq!(
                     NanoSecond(x % y),
-                    Currency::from(x) % &Token::from(y),
-                    "Currency::from({}) % &Token::from({})", x, y
+                    Token::from(x) % &Currency::from(y),
+                    "Token::from({}) % &Currency::from({})", x, y
                 );
             }
         }
