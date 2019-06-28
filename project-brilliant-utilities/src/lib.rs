@@ -3,17 +3,19 @@ extern crate derive_more;
 
 use std::ops::{Mul, Div, Rem};
 
-pub const NANOSECONDS_PER_DAY: Token = Token(86_400_000_000_000);
+pub const NANOSECONDS_PER_DAY: NanoSecond = NanoSecond(86_400_000_000_000);
+
+type IntegerType = u64;
 
 #[derive(Copy, Clone, Debug, From, PartialEq, Eq, PartialOrd, Ord,
          Add, AddAssign, Sub, SubAssign)]
-pub struct NanoSecond(u64);
+pub struct NanoSecond(IntegerType);
 #[derive(Copy, Clone, Debug, From, PartialEq, Eq, PartialOrd, Ord,
          Add, AddAssign, Sub, SubAssign)]
-pub struct Currency(u64);
+pub struct Currency(IntegerType);
 #[derive(Copy, Clone, Debug, From, PartialEq, Eq, PartialOrd, Ord,
          Add, AddAssign, Sub, SubAssign)]
-pub struct Token(u64);
+pub struct Token(IntegerType);
 
 impl Mul<Currency> for NanoSecond {
     type Output = Token;
@@ -87,11 +89,82 @@ impl Rem<&Currency> for Token {
         NanoSecond(self.0 % rhs.0)
     }
 }
+impl Mul<IntegerType> for NanoSecond {
+    type Output = NanoSecond;
+    fn mul(self: NanoSecond, rhs: IntegerType) -> NanoSecond {
+        NanoSecond(self.0 * rhs)
+    }
+}
+impl Mul<NanoSecond> for IntegerType {
+    type Output = NanoSecond;
+    fn mul(self: IntegerType, rhs: NanoSecond) -> NanoSecond {
+        NanoSecond(self * rhs.0)
+    }
+}
+impl Mul<IntegerType> for Currency {
+    type Output = Currency;
+    fn mul(self: Currency, rhs: IntegerType) -> Currency {
+        Currency(self.0 * rhs)
+    }
+}
+impl Mul<Currency> for IntegerType {
+    type Output = Currency;
+    fn mul(self: IntegerType, rhs: Currency) -> Currency {
+        Currency(self * rhs.0)
+    }
+}
+impl Mul<IntegerType> for Token {
+    type Output = Token;
+    fn mul(self: Token, rhs: IntegerType) -> Token {
+        Token(self.0 * rhs)
+    }
+}
+impl Mul<Token> for IntegerType {
+    type Output = Token;
+    fn mul(self: IntegerType, rhs: Token) -> Token {
+        Token(self * rhs.0)
+    }
+}
+impl Div<IntegerType> for NanoSecond {
+    type Output = NanoSecond;
+    fn div(self: NanoSecond, rhs: IntegerType) -> NanoSecond {
+        NanoSecond(self.0 / rhs)
+    }
+}
+impl Rem<IntegerType> for NanoSecond {
+    type Output = NanoSecond;
+    fn rem(self: NanoSecond, rhs: IntegerType) -> NanoSecond {
+        NanoSecond(self.0 % rhs)
+    }
+}
+impl Div<IntegerType> for Currency {
+    type Output = Currency;
+    fn div(self: Currency, rhs: IntegerType) -> Currency {
+        Currency(self.0 / rhs)
+    }
+}
+impl Rem<IntegerType> for Currency {
+    type Output = Currency;
+    fn rem(self: Currency, rhs: IntegerType) -> Currency {
+        Currency(self.0 % rhs)
+    }
+}
+impl Div<IntegerType> for Token {
+    type Output = Token;
+    fn div(self: Token, rhs: IntegerType) -> Token {
+        Token(self.0 / rhs)
+    }
+}
+impl Rem<IntegerType> for Token {
+    type Output = Token;
+    fn rem(self: Token, rhs: IntegerType) -> Token {
+        Token(self.0 % rhs)
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ops::{Add};
 
     // Rust: Something's too hard? Butcher it with a macro!
     macro_rules! sparse_to_32 {
@@ -110,11 +183,43 @@ mod tests {
         }
     }
 
+    // I'm bored of typing stuff.
+    // TODO: Refactor all tests to be as lazy as this.
+    // WARN: This will be effort. Effort for laziness.
+    macro_rules! comparison {
+        ('commutative $T:tt $x:tt $op:tt $y:tt) => {
+            comparison!($T $x $op $y);
+            assert_eq!(
+                $T($x $op $y),
+                $x $op $T::from($y),
+                concat!(
+                    "{} ",
+                    stringify!($op),
+                    " ",
+                    stringify!($T),
+                    "::from({})"
+                ), $x, $y
+            )
+        };
+        ($T:tt $x:tt $op:tt $y:tt) => {
+            assert_eq!(
+                $T($x $op $y),
+                $T::from($x) $op $y,
+                concat!(
+                    stringify!($T),
+                    "::from({}) ",
+                    stringify!($op),
+                    " {}"
+                ), $x, $y
+            )
+        }
+    }
+
     #[test]
     fn no_typo_in_npd_constant() {
         assert_eq!(
             NANOSECONDS_PER_DAY,
-            Token(1_000_000_000 * 60 * 60 * 24)
+            NanoSecond(1_000_000_000 * 60 * 60 * 24)
         )
     }
 
@@ -219,6 +324,9 @@ mod tests {
                     Currency::from(x) * &NanoSecond::from(y),
                     "Currency::from({}) * &NanoSecond::from({})", x, y
                 );
+                comparison!('commutative NanoSecond x * y);
+                comparison!('commutative Currency x * y);
+                comparison!('commutative Token x * y);
             }
         }
     }
@@ -266,6 +374,12 @@ mod tests {
                     Token::from(x) % &Currency::from(y),
                     "Token::from({}) % &Currency::from({})", x, y
                 );
+                comparison!(NanoSecond x / y);
+                comparison!(NanoSecond x % y);
+                comparison!(Currency x / y);
+                comparison!(Currency x % y);
+                comparison!(Token x / y);
+                comparison!(Token x % y);
             }
         }
     }
