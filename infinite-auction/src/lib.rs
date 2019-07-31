@@ -12,6 +12,7 @@ use project_brilliant_utilities::{
 
 use std::cmp::min;
 
+#[derive(Debug)]
 pub struct Bid<T: Copy> {
     bid: Currency,
     expense_limit: Token,
@@ -19,7 +20,7 @@ pub struct Bid<T: Copy> {
     data: T
 }
 
-pub fn winning_bids<'a, T: Copy>(
+fn winning_bids<'a, T: Copy>(
     mut bids: Vec<&'a mut Bid<T>>,
     increment: Currency
 ) -> Vec<(&'a mut Bid<T>, Currency)> {
@@ -32,10 +33,12 @@ pub fn winning_bids<'a, T: Copy>(
     for bid in bids.into_iter().rev() {
         index -= 1;
         let bid_amount = bid.bid;
-        output[index] = (bid, min(bid_amount, to_beat));
+        // output[index] =
+        output.push((bid, min(bid_amount, to_beat)));
         to_beat = bid_amount + increment;
     }
-    assert_eq!(index, 0, "Why can't you just do things normally?");
+    output.reverse();
+    // assert_eq!(index, 0, "Why can't you just do things normally?");
     output
 }
 
@@ -53,7 +56,7 @@ pub fn winning_bids<'a, T: Copy>(
 /// occasionally be necessary.
 #[deprecated(note="Refactor to avoid using this function.")]
 pub fn valid_bids<'a, T: Copy>(
-    bids: Vec<&'a Bid<T>>,
+    bids: &'a [Bid<T>],
     now: NanoSecond
 ) -> Vec<&'a Bid<T>> {
     bids.into_iter().filter(|bid| bid.bid    >     Currency::from(0)
@@ -82,10 +85,13 @@ fn find_end(
         return (expiry, Token::from(0));
     }
     let broke = (limit / amount) + now;
+    if broke > expiry {
+        return (expiry, (expiry - now) * amount)
+    }
     return (broke, limit / amount * amount);
 }
 
-fn run_auction<T: Copy>(
+pub fn run_auction<T: Copy>(
     mut bids: Vec<Bid<T>>,
     increment: Currency, mut now: NanoSecond
 ) -> Vec<(T, NanoSecond, Token)> {
@@ -96,16 +102,14 @@ fn run_auction<T: Copy>(
             increment
         );
         let mut index: usize = 0;
-        let bid_amount;
         let candidates_len = candidates.len();
-        loop {
+        let bid_amount = loop {
             if index >= candidates_len {break 'outer;}
             let (candidate, candidate_amount) = &candidates[index];
             if *candidate_amount * NanoSecond::from(1)
             <= candidate.expense_limit {
                 // it has a chance of being able to pay
-                bid_amount = *candidate_amount;
-                break;
+                break *candidate_amount;
             }
             index += 1;
         };
@@ -113,21 +117,18 @@ fn run_auction<T: Copy>(
         let part_off = index + 1;
         let (part_a, part_b) = candidates.split_at_mut(part_off);
         let bid = &mut part_a[index].0;
+        index += 1;
 
-        let mut expiry;
-        loop {
+        let expiry = loop {
             if index >= candidates_len {
-                expiry = bid.expiry;
-                break;
+                break bid.expiry;
             }
             let (candidate, candidate_amount) = &part_b[index - part_off];
             if *candidate_amount * NanoSecond::from(1)
             <= candidate.expense_limit {
-                expiry = min(candidate.expiry, bid.expiry);
-                break;
+                break min(candidate.expiry, bid.expiry);
             }
-        }
-        let expiry = expiry;
+        };
 
         let end = find_end(bid_amount, bid.expense_limit,
                            expiry, now);
@@ -150,7 +151,295 @@ fn run_auction<T: Copy>(
 mod tests {
     use super::*;
 
+    macro_rules! assert_almost_eq {
+        ($left:expr, $right:expr, within $bound:expr) => ({
+            match (&($left), &($right), &($bound)) {
+                (left, right, bound) => {
+                    if *left >= *right && *left - *right >= *bound
+                    || *right >= *left && *right - *left >= *bound {
+                         panic!(r#"assertion failed: \
+                         `(left =~= right within bound)`
+  left: `{:?}`,
+ right: `{:?}`,
+ bound: `{:?}`"#, left, right, bound);
+                     }
+                }
+            }
+        });
+    }
+
     #[test]
-    fn it_works() {
+    fn winning_bids_first_come() {
+        let mut bids = vec![
+            Bid {
+                bid:           Currency::from( 5_00),
+                expense_limit: Currency::from(25_00) * NANOSECONDS_PER_DAY,
+                expiry: NanoSecond::from(9001),  // that's impossible!
+                data: "Winner"
+            },
+            Bid {
+                bid:           Currency::from( 1_00),
+                expense_limit: Currency::from( 5_00) * NANOSECONDS_PER_DAY,
+                expiry: NanoSecond::from(9002),  // more impossible!
+                data: "No chance"
+            },
+            Bid {
+                bid:           Currency::from( 5_00),
+                expense_limit: Currency::from(   10) * NANOSECONDS_PER_DAY,
+                expiry: NanoSecond::from(9400),  // crazy!
+                data: "Sadly not"
+            }
+        ];
+        let (winner, bid) = &winning_bids(
+            bids.iter_mut().collect(),
+            Currency::from(                      10)
+        )[0];
+        assert_eq!(winner.data, "Winner");
+        assert_eq!(*bid, Currency::from(5_00));
+    }
+    #[test]
+    fn winning_bids_no_bid() {
+        assert_eq!(
+            winning_bids::<()>(vec![], Currency::from(2362)).len(),
+            0
+        );
+    }
+    #[test]
+    fn winning_bids_one_bid() {
+        let mut bids = vec![
+            Bid {
+                bid:           Currency::from( 5_00),
+                expense_limit: Currency::from(90_00) * NANOSECONDS_PER_DAY,
+                expiry: NanoSecond::from(3),
+                data: "Winner"
+            }
+        ];
+        let (winner, bid) = &winning_bids(
+            bids.iter_mut().collect(),
+            Currency::from(                      10)
+        )[0];
+        assert_eq!(winner.data, "Winner");
+        assert_eq!(*bid, Currency::from(0))
+    }
+
+    #[test]
+    fn valid_bids_static() {
+        let bids = [
+            Bid {
+                bid:           Currency::from( 0_00),
+                expense_limit: Currency::from( 1_00) * NANOSECONDS_PER_DAY,
+                expiry: NANOSECONDS_PER_DAY + NanoSecond::from(500),
+                data: "Invalid"
+            },
+            Bid {
+                bid:           Currency::from(10_00),
+                expense_limit: Token::from(0),
+                expiry: NANOSECONDS_PER_DAY + NanoSecond::from(200),
+                data: "Invalid"
+            },
+            Bid {
+                bid:           Currency::from( 4_50),
+                expense_limit: Currency::from(26_00) * NANOSECONDS_PER_DAY,
+                expiry: NANOSECONDS_PER_DAY + NanoSecond::from(800),
+                data: "Valid #1"
+            },
+            Bid {
+                bid:           Currency::from(63_00),
+                expense_limit: Currency::from( 2_40) * NANOSECONDS_PER_DAY,
+                expiry: NANOSECONDS_PER_DAY - NanoSecond::from(124),
+                data: "Invalid"
+            },
+            Bid {
+                bid:           Currency::from(84_50),
+                expense_limit: Currency::from(68_20) * NANOSECONDS_PER_DAY,
+                expiry: NANOSECONDS_PER_DAY + NanoSecond::from(620),
+                data: "Valid #2"
+            }
+        ];
+        #[allow(deprecated)]
+        let output = valid_bids(&bids, NANOSECONDS_PER_DAY);
+        assert_eq!(
+            output.into_iter().map(|bid| bid.data).collect::<Vec<&str>>(),
+            vec!["Valid #1", "Valid #2"]
+        );
+    }
+
+    #[test]
+    fn find_end_valid() {
+        for amount in (0..1_000).step_by(73) {
+            for limit in (0..300_000_000_000_000).step_by(772_757_382_975) {
+                for now in (0..3_000_000_000_000).step_by(548_795_182_242) {
+                    for expiry in (now+1..3_000_000_000_000)
+                    .step_by(5_647_289_173_652) {
+                        let amount = Currency::from(amount);
+                        let limit = Token::from(limit);
+                        let now = NanoSecond::from(now);
+                        let expiry = NanoSecond::from(expiry);
+                        let (finish, spent) = find_end(amount, limit,
+                                                       expiry, now);
+                        // Sanity
+                        assert!(finish <= expiry,
+                            "{:?} > {:?}", finish, expiry);
+                        assert!(finish >= now,
+                            "{:?} < {:?}", finish, now);
+
+                        // Validity
+                        assert!(amount * (finish - now) <= limit,
+                            "{:?} * ({:?} - {:?}) > {:?}",
+                            amount, finish, now, limit);
+                        assert!(spent <= limit,
+                            "{:?} > {:?}", spent, limit);
+
+                        if finish < expiry {
+                            // Didn't give up early for nothing
+                            // Not possible to have spent more
+                            assert!(
+                                limit - spent
+                              < amount * NanoSecond::from(1),
+                                "{:?} - {:?} < {:?}; money unspent",
+                                limit, spent, amount
+                            );
+                        } else {
+                            // Spent the right amount of money
+                            assert!(spent / (expiry - now) == amount,
+                                "{:?} / ({:?} - {:?}) != {:?}",
+                                spent, expiry, now, amount);
+                            assert!(
+                                spent % (expiry - now)
+                             == Currency::from(0),
+                                "{:?} % ({:?} - {:?}) != 0",
+                                spent, expiry, now
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Alice starts out and bids a maximum of $5 a day for a week.
+    /// Since she's the only bidder, her bid starts out at $0.
+    /// Free advertising!
+    #[test]
+    fn run_auction_alice_bids() {
+        let bids = vec![
+            Bid {
+                bid:           Currency::from(  5_00),  // $5
+                expense_limit: Token::from(42),  // unspecified (should default
+                                                 // to 500 * 7 * N_PER_DAY)
+                expiry: 7 * NANOSECONDS_PER_DAY,
+                data: "Alice"
+            }
+        ];
+        let auction = run_auction(
+            bids,
+            Currency::from(                     0_10),  // 10¢
+            NanoSecond::from(0)                         // t=0
+        );
+        assert_eq!(auction.len(), 1);
+
+        // Alice starts out…
+        let (alice, expiry, spent) = auction[0];
+        assert_eq!(alice, "Alice");
+        assert_eq!(expiry, 7 * NANOSECONDS_PER_DAY);
+        assert_eq!(spent, Token::from(0));
+    }
+
+    /// Partario wants in! He sees Alice's bid of $0 and decides
+    /// he'll outbid her with a bid of $1 a day for one day.
+    /// He places his bid, but Alice's bid automatically outbids him.
+    ///
+    /// A day later, Partario's bid expires, and Alice's bid
+    /// automatically drops back down to $0.
+    /// Free advertising!
+    #[test]
+    fn run_auction_partario_outbid() {
+        let bids = vec![
+            Bid {
+                bid:           Currency::from(  5_00),  // $5
+                expense_limit: Currency::from(  1_10)   // $1.10
+                             * NANOSECONDS_PER_DAY
+                             + Token::from(42),
+                expiry: 7 * NANOSECONDS_PER_DAY,
+                data: "Alice"
+            },
+            Bid {
+                bid:           Currency::from(  1_00),  // $1
+                expense_limit: Token::from(42),  // 42 == unspecified
+                expiry: 1 * NANOSECONDS_PER_DAY,
+                data: "Partario"
+            }
+        ];
+        let auction = run_auction(
+            bids,
+            Currency::from(                       10),  // 10¢
+            NanoSecond::from(0)                         // t=0
+        );
+        assert_eq!(auction.len(), 2);
+
+        // Partario wants in!…
+        let (alice, expiry, spent) = auction[0];
+        assert_eq!(alice, "Alice");
+        assert_eq!(expiry, 1 * NANOSECONDS_PER_DAY);
+        assert_eq!(spent, Currency::from(       1_10) * NANOSECONDS_PER_DAY);
+
+        // A day later…
+        let (alice, expiry, spent) = auction[1];
+        assert_eq!(alice, "Alice");
+        assert_eq!(expiry, 7 * NANOSECONDS_PER_DAY);
+        assert_eq!(spent, Token::from(0));
+    }
+
+    /// Partario's back, and this time he decides to bid $100 a day
+    /// for a week, with an expense limit of $1. Alice is outbid!
+    /// Notice that Partario's bid only goes as high as it needs to
+    /// in order to defeat Alice.
+    ///
+    /// Since Partario's bid is pretty big, but his expense limit is pretty
+    /// small, the $1 expense limit is very quickly reached. His bid was
+    /// charged at $5.10/day to a maximum of $1, so he got about five hours of
+    /// display time ($5.10/day is about 20 cents an hour) before
+    /// that $1 limit was reached.
+    ///
+    /// His bid expires, and Alice's takes over again at $0.
+    /// Free advertising!
+    #[test]
+    fn run_auction_partarios_revenge() {
+        let bids = vec![
+            Bid {
+                bid:           Currency::from(  5_00),  // $5
+                expense_limit: Token::from(42),
+                expiry: 7 * NANOSECONDS_PER_DAY,
+                data: "Alice"
+            },
+            Bid {
+                bid:           Currency::from(100_00),  // $100
+                expense_limit: Currency::from(  1_00)   // $1
+                             * NANOSECONDS_PER_DAY,
+                expiry: 1 * NANOSECONDS_PER_DAY,
+                data: "Partario"
+            }
+        ];
+        let auction = run_auction(
+            bids,
+            Currency::from(                       10),  // 10¢
+            NanoSecond::from(0)
+        );
+        assert_eq!(auction.len(), 2);
+
+        // Since Partario's bid…
+        let (partario, expiry, spent) = auction[0];
+        assert_eq!(partario, "Partario");
+        assert_almost_eq!(expiry, NANOSECONDS_PER_DAY / 24 * 5,
+            within NANOSECONDS_PER_DAY / 24);
+        assert_almost_eq!(spent, Currency::from(1_00)   // $1
+                               * NANOSECONDS_PER_DAY,
+            within Currency::from(1) * NANOSECONDS_PER_DAY / 10_000_000);
+
+        // His bid expires…
+        let (alice, expiry, spent) = auction[1];
+        assert_eq!(alice, "Alice");
+        assert_eq!(expiry, 7 * NANOSECONDS_PER_DAY);
+        assert_eq!(spent, Token::from(0));
     }
 }
