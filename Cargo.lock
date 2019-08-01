@@ -213,7 +213,7 @@ dependencies = [
 name = "infinite-auction"
 version = "0.0.0"
 dependencies = [
- "project-brilliant-utilities 0.1.1",
+ "project-brilliant-utilities 0.2.0",
 ]
 
 [[package]]
@@ -452,7 +452,7 @@ dependencies = [
 
 [[package]]
 name = "project-brilliant-utilities"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "derive_more 0.13.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

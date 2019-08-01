@@ -6,5 +6,5 @@ edition = "2018"
 publish = false  # It's not stable yet!
 
 [dependencies.project-brilliant-utilities]
-version = "0.1.1"
+version = "0.2"
 path = "../project-brilliant-utilities"
