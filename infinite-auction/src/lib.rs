@@ -10,7 +10,7 @@ use project_brilliant_utilities::{
     SECONDS_PER_DAY
 };
 
-use std::cmp::min;
+use std::cmp::{min, max};
 
 #[derive(Debug)]
 pub struct Bid<T: Copy> {
@@ -22,14 +22,14 @@ pub struct Bid<T: Copy> {
 
 fn winning_bids<'a, T: Copy>(
     mut bids: Vec<&'a mut Bid<T>>,
-    increment: Currency
+    increment: Currency, min_bid: Currency
 ) -> Vec<(&'a mut Bid<T>, Currency)> {
     bids.sort_by(|a, b| b.bid.cmp(&a.bid));
     let bids = bids;
 
     let mut index = bids.len();
     let mut output = Vec::with_capacity(index);
-    let mut to_beat = Currency::from(0);
+    let mut to_beat = min_bid;
     for bid in bids.into_iter().rev() {
         index -= 1;
         let bid_amount = bid.bid;
@@ -92,14 +92,22 @@ fn find_end(
 }
 
 pub fn run_auction<T: Copy>(
-    mut bids: Vec<Bid<T>>,
-    increment: Currency, mut now: Second
+    mut bids: Vec<Bid<T>>, increment: Currency,
+    min_bid: Currency, mut now: Second
 ) -> Vec<(T, Second, Token)> {
+    // Any less than this and it hasn't a chance.
+    let min_tokens = max(min_bid * Second::from(1), Token::from(1));
+
+    // Initial filtration.
+    bids.retain(|bid| bid.expiry > now
+                   && bid.bid >= min_bid
+                   && bid.expense_limit >= min_tokens);
+
     let mut output = Vec::with_capacity(bids.len());  // not max!
     'outer: while !bids.is_empty() {
         let mut candidates = winning_bids(
             bids.iter_mut().collect(),
-            increment
+            increment, min_bid
         );
         let mut index: usize = 0;
         let candidates_len = candidates.len();
@@ -142,7 +150,7 @@ pub fn run_auction<T: Copy>(
         output.push((bid.data, now, spent));
 
         bids.retain(|bid| bid.expiry > now
-                       && bid.expense_limit > Token::from(0));
+                       && bid.expense_limit >= min_tokens);
     }
     output
 }
@@ -192,7 +200,8 @@ mod tests {
         ];
         let (winner, bid) = &winning_bids(
             bids.iter_mut().collect(),
-            Currency::from(                      10)
+            Currency::from(                      10),
+            Currency::from(                       0)
         )[0];
         assert_eq!(winner.data, "Winner");
         assert_eq!(*bid, Currency::from(5_00));
@@ -200,7 +209,11 @@ mod tests {
     #[test]
     fn winning_bids_no_bid() {
         assert_eq!(
-            winning_bids::<()>(vec![], Currency::from(2362)).len(),
+            winning_bids::<()>(
+                vec![],
+                Currency::from(2362),
+                Currency::from(311)
+            ).len(),
             0
         );
     }
@@ -216,7 +229,8 @@ mod tests {
         ];
         let (winner, bid) = &winning_bids(
             bids.iter_mut().collect(),
-            Currency::from(                      10)
+            Currency::from(                      10),
+            Currency::from(                       0)
         )[0];
         assert_eq!(winner.data, "Winner");
         assert_eq!(*bid, Currency::from(0))
@@ -334,6 +348,7 @@ mod tests {
         let auction = run_auction(
             bids,
             Currency::from(                     0_10),  // 10¢
+            Currency::from(                     0_00),
             Second::from(0)                             // t=0
         );
         assert_eq!(auction.len(), 1);
@@ -373,6 +388,7 @@ mod tests {
         let auction = run_auction(
             bids,
             Currency::from(                       10),  // 10¢
+            Currency::from(                        0),
             Second::from(0)                             // t=0
         );
         assert_eq!(auction.len(), 2);
@@ -423,6 +439,7 @@ mod tests {
         let auction = run_auction(
             bids,
             Currency::from(                       10),  // 10¢
+            Currency::from(                        0),
             Second::from(0)
         );
         assert_eq!(auction.len(), 2);
@@ -485,6 +502,7 @@ mod tests {
         let auction = run_auction(
             bids,
             Currency::from(                       10),  // 10¢
+            Currency::from(                        0),
             SECONDS_PER_DAY                             // t=1d
         );
         assert_eq!(auction.len(), 3);
@@ -513,6 +531,36 @@ mod tests {
         assert_eq!(
             auction[2],
             ("Partario2", 8 * SECONDS_PER_DAY, Token::from(0))
+        );
+    }
+
+    #[test]
+    fn run_auction_none_can_bid() {
+        let bids = vec![
+            Bid {
+                bid:           Currency::from(  5_00),
+                expense_limit: Token::from(     4_00),
+                expiry: Second::from(10_000),
+                data: "Can't pay."
+            },
+            Bid {
+                bid:           Currency::from(  5_00),
+                expense_limit: Token::from(     6_00),
+                expiry: Second::from(10_000),
+                data: "Can only pay once."
+            }
+        ];
+        let auction = run_auction(
+            bids,
+            Currency::from(                       10),
+            Currency::from(                     4_60),
+            Second::from(0)
+        );
+        assert_eq!(auction.len(), 1);
+
+        assert_eq!(
+            auction[0],
+            ("Can only pay once.", Second::from(1), Token::from(460))
         );
     }
 }

@@ -211,7 +211,7 @@ dependencies = [
 
 [[package]]
 name = "infinite-auction"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "project-brilliant-utilities 0.2.0",
 ]
@@ -446,7 +446,7 @@ dependencies = [
 name = "project-brilliant"
 version = "0.0.0"
 dependencies = [
- "infinite-auction 0.1.0",
+ "infinite-auction 0.2.0",
  "mysql 16.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
