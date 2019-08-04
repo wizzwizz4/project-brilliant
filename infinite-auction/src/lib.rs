@@ -442,4 +442,77 @@ mod tests {
         assert_eq!(expiry, 7 * SECONDS_PER_DAY);
         assert_eq!(spent, Token::from(0));
     }
+
+    /// Partino also decides to place a second bid, this time of $1 a day
+    /// for a week. This way, if his more expensive bid expires, he'll still
+    /// have a chance of his ad being shown at a rate he likes! This new bid
+    /// is outbid, but his older bid of $100 (max) is still the high bidder,
+    /// so his ad is being shown.
+    ///
+    /// Since Partario's bid is pretty big, but his expense limit is pretty
+    /// small, the $1 expense limit is very quickly reached. His bid expires,
+    /// and once again Alice is the highest bidder. Partario's second bid of
+    /// $1 a day forces Alice's bid up a bit.
+    ///
+    /// Finally, a week after she placed it, Alice's bid expiry date is
+    /// reached, and it expires. Partario's bid of $1 a day is now the high
+    /// bidder! Nobody else has bid, so: free advertising!
+    #[test]
+    fn run_auction_partarios_revenge_2() {
+        let bids = vec![
+            Bid {
+                bid:           Currency::from(  5_00),  // $5
+                expense_limit: Currency::from(  5_00)
+                             * 7 * SECONDS_PER_DAY
+                             + Token::from(42),
+                expiry: 7 * SECONDS_PER_DAY,
+                data: "Alice"
+            },
+            Bid {
+                bid:           Currency::from(100_00),  // $100
+                expense_limit: Currency::from(  1_00)   // $1
+                             * SECONDS_PER_DAY,
+                expiry: 8 * SECONDS_PER_DAY,  // started at 1d
+                data: "Partario"
+            },
+            Bid {
+                bid:           Currency::from(  1_00),  // $1
+                expense_limit: Token::from(42),
+                expiry: 8 * SECONDS_PER_DAY,
+                data: "Partario2"
+            }
+        ];
+        let auction = run_auction(
+            bids,
+            Currency::from(                       10),  // 10¢
+            SECONDS_PER_DAY                             // t=1d
+        );
+        assert_eq!(auction.len(), 3);
+
+        // Partario also decides…
+        let (partario, expiry, spent) = auction[0];
+        assert_eq!(partario, "Partario");
+        assert_almost_eq!(expiry, SECONDS_PER_DAY / 24 * (24 + 5),
+            within SECONDS_PER_DAY / 24);
+        assert_almost_eq!(spent, Currency::from(1_00)   // $1
+                               * SECONDS_PER_DAY,
+            within Token::from(10_000));
+
+        // Since Partario's bid…
+        assert_eq!(
+            auction[1],
+            (
+                "Alice",
+                7 * SECONDS_PER_DAY,
+                (7 * SECONDS_PER_DAY - expiry)
+                               * Currency::from(1_10)   // $1
+            )
+        );
+
+        // Finally, a week…
+        assert_eq!(
+            auction[2],
+            ("Partario2", 8 * SECONDS_PER_DAY, Token::from(0))
+        );
+    }
 }
