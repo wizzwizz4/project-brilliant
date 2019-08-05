@@ -27,13 +27,10 @@ fn winning_bids<'a, T: Copy>(
     bids.sort_by(|a, b| b.bid.cmp(&a.bid));
     let bids = bids;
 
-    let mut index = bids.len();
-    let mut output = Vec::with_capacity(index);
+    let mut output = Vec::with_capacity(bids.len());
     let mut to_beat = min_bid;
     for bid in bids.into_iter().rev() {
-        index -= 1;
         let bid_amount = bid.bid;
-        // output[index] =
         output.push((bid, min(bid_amount, to_beat)));
         to_beat = bid_amount + increment;
     }
