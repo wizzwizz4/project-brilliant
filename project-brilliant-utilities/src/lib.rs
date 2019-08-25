@@ -17,6 +17,22 @@ pub struct Currency(IntegerType);
          Add, AddAssign, Sub, SubAssign)]
 pub struct Token(IntegerType);
 
+impl Second {
+    pub const fn max_value() -> Second {
+        Second(IntegerType::max_value())
+    }
+}
+impl Currency {
+    pub const fn max_value() -> Currency {
+        Currency(IntegerType::max_value())
+    }
+}
+impl Token {
+    pub const fn max_value() -> Token {
+        Token(IntegerType::max_value())
+    }
+}
+
 impl Mul<Currency> for Second {
     type Output = Token;
     fn mul(self: Second, rhs: Currency) -> Token {

@@ -1,10 +1,10 @@
 [package]
 name = "infinite-auction"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["wizzwizz4"]
 edition = "2018"
 publish = false  # It's not stable yet!
 
 [dependencies.project-brilliant-utilities]
-version = "0.2"
+version = "0.2.1"
 path = "../project-brilliant-utilities"

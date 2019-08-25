@@ -20,23 +20,79 @@ pub struct Bid<T: Copy> {
     data: T
 }
 
-fn winning_bids<'a, T: Copy>(
-    mut bids: Vec<&'a mut Bid<T>>,
+fn winning_bid<'a, T: Copy>(
+    bids: Vec<&'a mut Bid<T>>,
     increment: Currency, min_bid: Currency
-) -> Vec<(&'a mut Bid<T>, Currency)> {
+) -> Option<(&'a mut Bid<T>, Currency, Second)> {
+    let mut bids = bids.into_iter().filter(|x| x.bid >= min_bid)
+        .collect::<Vec<&'a mut Bid<T>>>();
     bids.sort_by(|a, b| b.bid.cmp(&a.bid));
-    let bids = bids;
 
-    let mut output = Vec::with_capacity(bids.len());
+    /////////////////////////////////////////////////////
+
+    // let mut index: usize = 0;
+    // let candidates_len = candidates.len();
+    // let bid_amount = loop {
+    //     if index >= candidates_len {return None;}
+    //     let (candidate, candidate_amount) = &candidates[index];
+    //     if *candidate_amount * Second::from(1)
+    //     <= candidate.expense_limit {
+    //         // it has a chance of being able to pay
+    //         break *candidate_amount;
+    //     }
+    //     index += 1;
+    // };
+    //
+    // let part_off = index + 1;
+    // let (part_a, part_b) = candidates.split_at_mut(part_off);
+    // let bid = &mut part_a[index].0;
+    // index += 1;
+    //
+    // let expiry = loop {
+    //     if index >= candidates_len {
+    //         break bid.expiry;
+    //     }
+    //     let (candidate, candidate_amount) = &part_b[index - part_off];
+    //     if *candidate_amount * Second::from(1)
+    //     <= candidate.expense_limit {
+    //         break min(candidate.expiry, bid.expiry);
+    //     }
+    // };
+
+    ////////////////////////////////////////////////////
+
     let mut to_beat = min_bid;
+
+    let split_index = {
+        let mut index = bids.len();
+        loop {
+            if index == 0 {
+                return None;
+            }
+            index -= 1;
+            let bid = &bids[index];
+            if min_bid * Second::from(1) <= bid.expense_limit {
+                break index;
+            }
+        }
+    };
+    let (mut bids,              mut winner):
+        (&mut [&'a mut Bid<T>], &mut [&'a mut Bid<T>])
+    = bids.split_at_mut(split_index);
+    let mut winner: &'a mut Bid<T> = winner.into_iter().nth(0).unwrap();
+    let mut bid_amount = winner.bid;
+    let mut expiry = winner.expiry;
+
     for bid in bids.into_iter().rev() {
-        let bid_amount = bid.bid;
-        output.push((bid, min(bid_amount, to_beat)));
-        to_beat = bid_amount + increment;
+        if bid.expense_limit >= to_beat * Second::from(1) {
+            expiry = winner.expiry;
+            bid_amount = min(bid.bid, to_beat);
+            to_beat = bid.bid + increment;
+            winner = bid;
+        }
     }
-    output.reverse();
-    // assert_eq!(index, 0, "Why can't you just do things normally?");
-    output
+
+    Some((winner, bid_amount, expiry))
 }
 
 /// Filter bids for valid ones.
@@ -102,38 +158,10 @@ pub fn run_auction<T: Copy>(
 
     let mut output = Vec::with_capacity(bids.len());  // not max!
     'outer: while !bids.is_empty() {
-        let mut candidates = winning_bids(
+        let (mut bid, bid_amount, expiry) = winning_bid(
             bids.iter_mut().collect(),
             increment, min_bid
-        );
-        let mut index: usize = 0;
-        let candidates_len = candidates.len();
-        let bid_amount = loop {
-            if index >= candidates_len {break 'outer;}
-            let (candidate, candidate_amount) = &candidates[index];
-            if *candidate_amount * Second::from(1)
-            <= candidate.expense_limit {
-                // it has a chance of being able to pay
-                break *candidate_amount;
-            }
-            index += 1;
-        };
-
-        let part_off = index + 1;
-        let (part_a, part_b) = candidates.split_at_mut(part_off);
-        let bid = &mut part_a[index].0;
-        index += 1;
-
-        let expiry = loop {
-            if index >= candidates_len {
-                break bid.expiry;
-            }
-            let (candidate, candidate_amount) = &part_b[index - part_off];
-            if *candidate_amount * Second::from(1)
-            <= candidate.expense_limit {
-                break min(candidate.expiry, bid.expiry);
-            }
-        };
+        ).unwrap();
 
         let end = find_end(bid_amount, bid.expense_limit,
                            expiry, now);
@@ -174,7 +202,7 @@ mod tests {
     }
 
     #[test]
-    fn winning_bids_first_come() {
+    fn winning_bid_first_come() {
         let mut bids = vec![
             Bid {
                 bid:           Currency::from( 5_00),
@@ -195,27 +223,24 @@ mod tests {
                 data: "Sadly not"
             }
         ];
-        let (winner, bid) = &winning_bids(
+        let (winner, bid, expiry) = winning_bid(
             bids.iter_mut().collect(),
             Currency::from(                      10),
             Currency::from(                       0)
-        )[0];
+        ).unwrap();
         assert_eq!(winner.data, "Winner");
-        assert_eq!(*bid, Currency::from(5_00));
+        assert_eq!(bid, Currency::from(5_00));
     }
     #[test]
-    fn winning_bids_no_bid() {
-        assert_eq!(
-            winning_bids::<()>(
-                vec![],
-                Currency::from(2362),
-                Currency::from(311)
-            ).len(),
-            0
-        );
+    fn winning_bid_no_bid() {
+        assert!(winning_bid::<()>(
+            vec![],
+            Currency::from(2362),
+            Currency::from(311)
+        ).is_none());
     }
     #[test]
-    fn winning_bids_one_bid() {
+    fn winning_bid_one_bid() {
         let mut bids = vec![
             Bid {
                 bid:           Currency::from( 5_00),
@@ -224,13 +249,13 @@ mod tests {
                 data: "Winner"
             }
         ];
-        let (winner, bid) = &winning_bids(
+        let (winner, bid, expiry) = winning_bid(
             bids.iter_mut().collect(),
             Currency::from(                      10),
             Currency::from(                       0)
-        )[0];
+        ).unwrap();
         assert_eq!(winner.data, "Winner");
-        assert_eq!(*bid, Currency::from(0))
+        assert_eq!(bid, Currency::from(0))
     }
 
     #[test]
