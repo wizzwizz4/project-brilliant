@@ -76,11 +76,10 @@ fn winning_bid<'a, T: Copy>(
             }
         }
     };
-    let (mut bids,              mut winner):
-        (&mut [&'a mut Bid<T>], &mut [&'a mut Bid<T>])
-    = bids.split_at_mut(split_index);
-    let mut winner: &'a mut Bid<T> = winner.into_iter().nth(0).unwrap();
-    let mut bid_amount = winner.bid;
+    bids.truncate(split_index + 1);
+    let mut winner: &'a mut Bid<T> = bids.remove(split_index);
+    let mut bid_amount = min(winner.bid, to_beat);
+    to_beat = winner.bid + increment;
     let mut expiry = winner.expiry;
 
     for bid in bids.into_iter().rev() {
