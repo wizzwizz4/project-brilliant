@@ -24,44 +24,10 @@ fn winning_bid<'a, T: Copy>(
     bids: Vec<&'a mut Bid<T>>,
     increment: Currency, min_bid: Currency
 ) -> Option<(&'a mut Bid<T>, Currency, Second)> {
-    let mut bids = bids.into_iter().filter(|x| x.bid >= min_bid)
+    let mut bids = bids.into_iter()
+        .filter(|x| x.bid >= min_bid)
         .collect::<Vec<&'a mut Bid<T>>>();
     bids.sort_by(|a, b| b.bid.cmp(&a.bid));
-
-    /////////////////////////////////////////////////////
-
-    // let mut index: usize = 0;
-    // let candidates_len = candidates.len();
-    // let bid_amount = loop {
-    //     if index >= candidates_len {return None;}
-    //     let (candidate, candidate_amount) = &candidates[index];
-    //     if *candidate_amount * Second::from(1)
-    //     <= candidate.expense_limit {
-    //         // it has a chance of being able to pay
-    //         break *candidate_amount;
-    //     }
-    //     index += 1;
-    // };
-    //
-    // let part_off = index + 1;
-    // let (part_a, part_b) = candidates.split_at_mut(part_off);
-    // let bid = &mut part_a[index].0;
-    // index += 1;
-    //
-    // let expiry = loop {
-    //     if index >= candidates_len {
-    //         break bid.expiry;
-    //     }
-    //     let (candidate, candidate_amount) = &part_b[index - part_off];
-    //     if *candidate_amount * Second::from(1)
-    //     <= candidate.expense_limit {
-    //         break min(candidate.expiry, bid.expiry);
-    //     }
-    // };
-
-    ////////////////////////////////////////////////////
-
-    let mut to_beat = min_bid;
 
     let split_index = {
         let mut index = bids.len();
@@ -78,8 +44,8 @@ fn winning_bid<'a, T: Copy>(
     };
     bids.truncate(split_index + 1);
     let mut winner: &'a mut Bid<T> = bids.remove(split_index);
-    let mut bid_amount = min(winner.bid, to_beat);
-    to_beat = winner.bid + increment;
+    let mut bid_amount = min(winner.bid, min_bid);
+    let mut to_beat = winner.bid + increment;
     let mut expiry = winner.expiry;
 
     for bid in bids.into_iter().rev() {
@@ -157,7 +123,7 @@ pub fn run_auction<T: Copy>(
 
     let mut output = Vec::with_capacity(bids.len());  // not max!
     'outer: while !bids.is_empty() {
-        let (mut bid, bid_amount, expiry) = winning_bid(
+        let (bid, bid_amount, expiry) = winning_bid(
             bids.iter_mut().collect(),
             increment, min_bid
         ).unwrap();
@@ -229,6 +195,7 @@ mod tests {
         ).unwrap();
         assert_eq!(winner.data, "Winner");
         assert_eq!(bid, Currency::from(5_00));
+        assert_eq!(expiry, Second::from(9001));
     }
     #[test]
     fn winning_bid_no_bid() {
@@ -254,7 +221,8 @@ mod tests {
             Currency::from(                       0)
         ).unwrap();
         assert_eq!(winner.data, "Winner");
-        assert_eq!(bid, Currency::from(0))
+        assert_eq!(bid, Currency::from(0));
+        assert_eq!(expiry, Second::from(3));
     }
 
     #[test]
