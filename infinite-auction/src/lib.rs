@@ -84,7 +84,7 @@ fn winning_bid<'a, T: Copy>(
 
     for bid in bids.into_iter().rev() {
         if bid.expense_limit >= to_beat * Second::from(1) {
-            expiry = winner.expiry;
+            expiry = min(winner.expiry, bid.expiry);
             bid_amount = min(bid.bid, to_beat);
             to_beat = bid.bid + increment;
             winner = bid;
