@@ -9,12 +9,12 @@ publish = false  # It's not stable yet!
 version = "*"
 path = "infinite-auction"
 
-[dependencies.mysql]
-version = "*"
-features = ["ssl"]
-
 [badges]
 travis-ci = { repository = "wizzwizz4/project-brilliant" }
 
 [workspace]
-members = ["infinite-auction"]
+members = [
+    "infinite-auction",
+    "project-brilliant-utilities",
+    "project-brilliant-db"
+]

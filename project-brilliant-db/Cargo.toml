@@ -1,0 +1,17 @@
+[package]
+name = "project-brilliant-db"
+version = "0.0.1"
+authors = ["wizzwizz4"]
+edition = "2018"
+publish = false  # It's not stable yet!
+
+[dependencies.project-brilliant-utilities]
+version = "0.2.1"
+path = "../project-brilliant-utilities"
+
+[dependencies.rustorm]
+version = "0.15.2"
+features = ["with-sqlite"]
+
+[dev-dependencies]
+tempfile = "3.0.1"
