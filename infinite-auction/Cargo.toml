@@ -1,6 +1,6 @@
 [package]
 name = "infinite-auction"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["wizzwizz4"]
 edition = "2018"
 publish = false  # It's not stable yet!

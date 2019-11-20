@@ -14,36 +14,30 @@ use std::cmp::{min, max};
 
 #[derive(Debug)]
 pub struct Bid<T: Copy> {
-    bid: Currency,
-    expense_limit: Token,
-    expiry: Second,
-    data: T
+    pub bid: Currency,
+    pub expense_limit: Token,
+    pub expiry: Second,
+    pub data: T
 }
 
 fn winning_bid<'a, T: Copy>(
     bids: Vec<&'a mut Bid<T>>,
     increment: Currency, min_bid: Currency
 ) -> Option<(&'a mut Bid<T>, Currency, Second)> {
-    let mut bids = bids.into_iter()
-        .filter(|x| x.bid >= min_bid)
-        .collect::<Vec<&'a mut Bid<T>>>();
+    let mut bids: Vec<_> = bids.into_iter()
+                               .filter(|x| x.bid >= min_bid)
+                               .collect();
     bids.sort_by(|a, b| b.bid.cmp(&a.bid));
 
-    let split_index = {
-        let mut index = bids.len();
-        loop {
-            if index == 0 {
-                return None;
-            }
-            index -= 1;
-            let bid = &bids[index];
-            if min_bid * Second::from(1) <= bid.expense_limit {
-                break index;
-            }
+    let mut winner = loop {
+        let bid = match bids.pop() {
+            Some(x) => x,
+            None => return None
+        };
+        if min_bid * Second::from(1) <= bid.expense_limit {
+            break bid;
         }
     };
-    bids.truncate(split_index + 1);
-    let mut winner: &'a mut Bid<T> = bids.remove(split_index);
     let mut bid_amount = min(winner.bid, min_bid);
     let mut to_beat = winner.bid + increment;
     let mut expiry = winner.expiry;
@@ -64,21 +58,27 @@ fn winning_bid<'a, T: Copy>(
 ///
 /// The three checks this performs are:
 ///
-///   * `bid`[`.bid`]()` > `[`Currency`]()`(0)`
-///   * `bid`[`.expense_limit`]()` > `[`Token`]()`(0)`
-///   * `bid`[`.expiry`]()` > now`
+///   * `bid`[`.bid`]` > `[`Currency`]`(0)`
+///   * `bid`[`.expense_limit`]` > `[`Token`]`(0)`
+///   * `bid`[`.expiry`]` > now`
 ///
 /// These checks are better implemented in SQL (or something), since
 /// this function is rather inefficient. Nevertheless, since other
 /// functions expect to recieve only valid bids, this function may
 /// occasionally be necessary.
+///
+///   [`.bid`]: struct.Bid.html#structfield.bid
+///   [`.expense_limit`]: struct.Bid.html#structfield.expense_limit
+///   [`.expiry`]: struct.Bid.html#structfield.expiry
+///   [`Currency`]: ../project_brilliant_utilities/struct.Currency.html
+///   [`Token`]: ../project_brilliant_utilities/struct.Token.html
 #[deprecated(note="Refactor to avoid using this function.")]
 pub fn valid_bids<'a, T: Copy>(
     bids: &'a [Bid<T>],
     now: Second
 ) -> Vec<&'a Bid<T>> {
-    bids.into_iter().filter(|bid| bid.bid    >     Currency::from(0)
-                               && bid.expense_limit > Token::from(0)
+    bids.into_iter().filter(|bid| bid.bid > 0.into()
+                               && bid.expense_limit > 0.into()
                                && bid.expiry > now).collect()
 }
 
@@ -99,8 +99,8 @@ fn find_end(
                           expiry,                   now
         );
     }
-    if amount == Currency::from(0) {
-        return (expiry, Token::from(0));
+    if amount == 0.into() {
+        return (expiry, 0.into());
     }
     let broke = (limit / amount) + now;
     if broke > expiry {
@@ -114,13 +114,14 @@ pub fn run_auction<T: Copy>(
     min_bid: Currency, mut now: Second
 ) -> Vec<(T, Second, Token)> {
     // Any less than this and it hasn't a chance.
-    let min_tokens = max(min_bid * Second::from(1), Token::from(1));
+    let min_tokens = max(min_bid * Second::from(1), 1.into());
 
     // Initial filtration.
     bids.retain(|bid| bid.expiry > now
                    && bid.bid >= min_bid
                    && bid.expense_limit >= min_tokens);
 
+    // TODO: Profiling to determine best initial capacity.
     let mut output = Vec::with_capacity(bids.len());  // not max!
     'outer: while !bids.is_empty() {
         let (bid, bid_amount, expiry) = winning_bid(
@@ -132,8 +133,7 @@ pub fn run_auction<T: Copy>(
                            expiry, now);
         now = end.0;
         let spent = end.1;
-        assert!(bid_amount == Currency::from(0)
-             || spent > Token::from(0),
+        assert!(bid_amount == 0.into() || spent > 0.into(),
                 "Stuck in an infinite loop!");
         bid.expense_limit -= spent;
 
